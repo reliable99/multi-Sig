@@ -61,6 +61,60 @@ contract MultiSig {
     }
 
     function approveTransaction(uint256 _txId) external  {
+        require(_txId <= txCount, "Invalid transactions is");
+        require(msg.sender != address(0), "Zero address detected");
+
+        onlyValidSigner();
+
+        require(!hasSigned[_txId][msg.sender], "Cant sign twice");
+        Transaction storage tns = transactions[_txId];
+        require(address(this).balance >= tns.amount, "Insufficient funds balance");
+
+        require(!tns.isExecuted, "Transaction already executed");
+        require(tns.signersCount < quorum, "Quorum count reached");
+
+        tns.signersCount = tns.signersCount + 1;
+
+        hasSigned[_txId][msg.sender] = true;
+
+        if(tns.signersCount == quorum) {
+            tns.isExecuted = true;
+            payable(tns.receiver).transfer(tns.amount);
+        }
+    }
+
+    function transferOwnership(address _newOwner) external {
+        onlyOwner();
+        nextOwner = _newOwner;
+    }
+
+    function claimOwnership() external {
+        require(msg.sender == nextOwner, "Not next owner");
+
+        owner = msg.sender;
+
+        nextOwner = address(0);
+    }
+
+    function addValidSigner(address _newSigner) external {
+        onlyOwner();
+
+        require(!isValidSigner[_newSigner], "signer already exist");
+
+        isValidSigner[_newSigner] = true;
+        signers.push(_newSigner);
+    }
+
+    function removeSigner(uint _index) external  {
+        onlyOwner();
+
+        require(_index < signers.length, "Invalid signer");
+
+        signers[_index] = signers[signers.length - 1];
+
+        isValidSigner[signers[_index]] = false;
+
+        signers.pop();
 
     }
 
